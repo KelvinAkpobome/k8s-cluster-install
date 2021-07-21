@@ -1,0 +1,148 @@
+---
+  - hosts: all
+    become: yes
+    tasks:
+      - name: create the 'ubuntu' user
+        user: name=ubuntu append=yes state=present createhome=yes shell=/bin/bash
+      
+      - name: allow 'ubuntu' to have passwordless sudo
+        lineinfile:
+          dest: /etc/sudoers
+          line: 'ubuntu ALL=(ALL) NOPASSWD: ALL'
+          validate: 'visudo -cf %s'
+
+      - name: set up authorized keys for the ubuntu user
+        authorized_key: user=ubuntu key="{{item}}"
+        with_file:
+          - ~/.ssh/id_rsa.pub
+
+      - name: install Docker
+        apt:
+          name: "{{ item }}"
+          state: present
+          update_cache: yes
+        with_items:
+          - docker.io
+
+      - name: install APT Transport HTTPS
+        apt:
+          name: apt-transport-https
+          state: present
+
+      - name: add Kubernetes apt-key
+        apt_key:
+          url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+          state: present
+
+      - name: add Kubernetes' APT repository
+        apt_repository:
+          repo: deb http://apt.kubernetes.io/kubernetes-xenial main
+          state: present
+          filename: 'kubernetes'
+
+      - name: install kubelet
+        apt:
+          name: kubelet=1.20.1-00
+          state: present
+          update_cache: yes
+
+      - name: install kubeadm
+        apt:
+          name: kubeadm=1.14.0-00
+          state: present
+
+      - name: hold the software at the recent but stable version 
+        shell: apt-mark hold kubelet kubeadm
+        
+
+  - hosts: master
+    become: yes
+    tasks:
+      - name: install kubectl
+        apt:
+          name: kubectl==1.20.1-00
+          state: present
+          force: yes
+
+      - name: hold the software at the recent but stable version 
+        shell: apt-mark hold kubectl
+
+      - name: Download Calico as a network plugin which will allow us to use Network Policies
+        get_url:
+          url: https://docs.projectcalico.org/manifests/calico.yaml
+          dest: ~/
+          
+
+      - name: Find the IP address of the primary interface of the master server
+        shell: hostname -i
+        register: hostname
+
+      - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
+        lineinfile:
+          dest: /etc/hosts
+          line: "{{ hostname  k8scp }}"
+          owner: root
+          group: root
+          mode: '0644'
+        
+      - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
+        lineinfile:
+          dest: kubeadm-config.yaml
+          regexp: '^controlPlaneEndpoint: '
+          line: 'controlPlaneEndpoint: "k8scp:6443"'
+          
+      - name: Find the IP address of the primary interface of the master server
+        shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+        args:
+          chdir: $HOME
+
+      - name: create .kube directory
+        become: yes
+        become_user: ubuntu
+        file:
+          path: $HOME/.kube
+          state: directory
+          mode: 0755
+
+      - name: copy admin.conf to user's kube config
+        copy:
+          src: /etc/kubernetes/admin.conf
+          dest: /home/ubuntu/.kube/config
+          remote_src: yes
+          owner: ubuntu
+
+      - name: Remember to copy the file to the current, non-root user directory first
+        copy:
+          src:  /root/calico.yaml
+          dest: ./
+          remote_src: yes
+          owner: ubuntu
+
+      - name: install Pod network
+        become: yes
+        become_user: ubuntu
+        shell: kubectl apply -f calico.yaml
+
+
+  - hosts: master
+    become: yes
+    gather_facts: false
+    tasks:
+      - name: get join command
+        shell: kubeadm token create --print-join-command
+        register: join_command_raw
+
+      - name: set join command
+        set_fact:
+          join_command: "{{ join_command_raw.stdout_lines[0] }}"
+
+  - hosts: workers
+    become: yes
+    tasks:
+
+      - name: join cluster
+        shell: "{{ hostvars['master'].join_command }} >> node_joined.txt"
+        args:
+          chdir: $HOME
+          creates: node_joined.txt
+
