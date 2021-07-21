@@ -79,7 +79,7 @@
       - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
         lineinfile:
           dest: /etc/hosts
-          line: "{{ hostname  k8scp }}"
+          line: '"{{ hostname }}" k8scp '
           owner: root
           group: root
           mode: '0644'
