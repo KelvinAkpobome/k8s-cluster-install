@@ -69,24 +69,21 @@
       - name: Download Calico as a network plugin which will allow us to use Network Policies
         get_url:
           url: https://docs.projectcalico.org/manifests/calico.yaml
-          dest: ~/
-          
+          dest: ~/      
 
-      - name: Find the IP address of the primary interface of the master server
-        shell: hostname -i
-        register: hostname
 
-      - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
+      - name: Ensure we replace hostname wit k8scp in /etc/hosts
         lineinfile:
           dest: /etc/hosts
-          line: '"{{ hostname }}" k8scp '
+          regexp: '^127\.0\.1\.1'
+          line: 127.0.1.1 k8scp 
           owner: root
           group: root
           mode: '0644'
         
       - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
         lineinfile:
-          dest: kubeadm-config.yaml
+          dest: ~/kubeadm-config.yaml
           regexp: '^controlPlaneEndpoint: '
           line: 'controlPlaneEndpoint: "k8scp:6443"'
           
