@@ -18,11 +18,10 @@
 
       - name: install Docker
         apt:
-          name: "{{ item }}"
+          name: "docker.io"
           state: present
           update_cache: yes
-        with_items:
-          - docker.io
+       
 
       - name: install APT Transport HTTPS
         apt:
