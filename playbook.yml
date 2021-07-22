@@ -1,6 +1,7 @@
 ---
   - hosts: all
     become: yes
+    become_user: root
     tasks:
       - name: create the 'ubuntu' user
         user: name=ubuntu append=yes state=present createhome=yes shell=/bin/bash
@@ -56,6 +57,7 @@
 
   - hosts: master
     become: yes
+    become_user: root
     tasks:
       - name: install kubectl
         apt:
@@ -102,8 +104,8 @@
 
             ...
           
-      - name: Find the IP address of the primary interface of the master server
-        shell: sudo kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+      - name: Initialize the cluster
+        shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
         args:
           chdir: $HOME
 
