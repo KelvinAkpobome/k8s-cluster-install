@@ -137,9 +137,8 @@
       - name: install Pod network
         become: yes
         become_user: ubuntu
-        shell: kubectl apply -f calico.yaml
-        args:
-          chdir: $HOME
+        shell: kubectl apply -f ~/calico.yaml
+       
 
 
   - hosts: master
