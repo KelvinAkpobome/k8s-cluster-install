@@ -81,11 +81,21 @@
           group: root
           mode: '0644'
         
-      - name: Ensure we have our above IP address and assign a name k8scp in /etc/hosts
-        lineinfile:
-          dest: ~/kubeadm-config.yaml
-          regexp: '^controlPlaneEndpoint: '
-          line: 'controlPlaneEndpoint: "k8scp:6443"'
+      - name: Create a configuration file for the cluster.
+        blockinfile:
+          path:  ~/kubeadm-config.yaml
+          marker: ""
+          block: |
+            ---
+
+            apiVersion: kubeadm.k8s.io/v1beta2
+            kind: ClusterConfiguration
+            kubernetesVersion: 1.20.1
+            controlPlaneEndpoint: "k8scp:6443"
+            networking:
+              podSubnet: 192.168.0.0/16
+
+            ...
           
       - name: Find the IP address of the primary interface of the master server
         shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
