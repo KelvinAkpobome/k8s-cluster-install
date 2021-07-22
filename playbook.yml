@@ -102,10 +102,10 @@
 
             ...
           
-      - name: Find the IP address of the primary interface of the master server
+      - name: Initialize cluster
         shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
         args:
-          chdir: $HOME
+          chdir: /root
 
       - name: create .kube directory
         become: yes
@@ -116,16 +116,27 @@
           mode: 0755
 
       - name: copy admin.conf to user's kube config
+        become: yes
+        become_user: ubuntu
         copy:
           src: /etc/kubernetes/admin.conf
           dest: /home/ubuntu/.kube/config
           remote_src: yes
           owner: ubuntu
 
+      - name: change privileges
+        become: yes
+        become_user: ubuntu
+        shell: chown $(id -u):$(id -g) $HOME/.kube/config
+        args:
+          chdir: $HOME
+
       - name: Remember to copy the file to the current, non-root user directory first
+        become: yes
+        become_user: ubuntu
         copy:
           src:  /root/calico.yaml
-          dest: ./
+          dest: /home/ubuntu/
           remote_src: yes
           owner: ubuntu
 
@@ -133,6 +144,8 @@
         become: yes
         become_user: ubuntu
         shell: kubectl apply -f calico.yaml
+        args:
+          chdir: $HOME
 
 
   - hosts: master
