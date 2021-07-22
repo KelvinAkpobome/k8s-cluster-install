@@ -138,6 +138,8 @@
         become: yes
         become_user: ubuntu
         shell: kubectl apply -f calico.yaml
+        args:
+          chdir: $HOME
 
 
   - hosts: master
