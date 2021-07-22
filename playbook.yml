@@ -108,9 +108,10 @@
             ...
           
       - name: Initialize the cluster
-        shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+        shell: 
         args:
-          chdir: /root
+          cmd: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+          chdir: $HOME
 
       - name: create .kube directory
         become: yes
