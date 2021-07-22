@@ -103,7 +103,7 @@
             ...
           
       - name: Find the IP address of the primary interface of the master server
-        shell: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+        shell: sudo kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
         args:
           chdir: $HOME
 
