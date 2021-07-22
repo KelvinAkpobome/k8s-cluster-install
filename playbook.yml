@@ -135,8 +135,6 @@
           chdir: $HOME
 
       - name: Remember to copy the file to the current, non-root user directory first
-        become: yes
-        become_user: ubuntu
         copy:
           src:  /root/calico.yaml
           dest: /home/ubuntu/
@@ -144,7 +142,11 @@
           owner: ubuntu
 
       - name: install Pod network
-        shell: kubectl apply -f /root/calico.yaml
+        become: yes
+        become_user: ubuntu
+        shell: kubectl apply -f calico.yaml
+        args:
+          chdir: $HOME
        
 
 
