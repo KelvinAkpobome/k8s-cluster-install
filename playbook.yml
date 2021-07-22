@@ -81,6 +81,11 @@
           group: root
           mode: '0644'
 
+      - name: Delete previous configuration file if present.
+        file:
+          path:  ~/kubeadm-config.yaml
+          state: absent
+
       - name: Create a configuration file for the cluster.
         file:
           path:  ~/kubeadm-config.yaml
