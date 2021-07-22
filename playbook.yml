@@ -126,10 +126,9 @@
       - name: change privileges
         become: yes
         become_user: ubuntu
-        file:
-          path: $HOME/.kube/config
-          mode: '0644'
-
+        shell: chown $(id -u):$(id -g) $HOME/.kube/config
+        args:
+          chdir: $HOME
 
       - name: Remember to copy the file to the current, non-root user directory first
         copy:
