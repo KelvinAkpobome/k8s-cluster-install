@@ -80,8 +80,13 @@
           owner: root
           group: root
           mode: '0644'
-        
+
       - name: Create a configuration file for the cluster.
+        file:
+          path:  ~/kubeadm-config.yaml
+          state: touch
+       
+      - name: Set the configuration file for the cluster.
         blockinfile:
           path:  ~/kubeadm-config.yaml
           marker: ""
