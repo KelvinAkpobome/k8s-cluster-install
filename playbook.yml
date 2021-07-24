@@ -2,17 +2,24 @@
   - hosts: all
     become: yes
     tasks:
-      - name: create the 'ubuntu' user
-        user: name=ubuntu append=yes state=present createhome=yes shell=/bin/bash
+
+      - name: update and upgrade apt package
+        apt: 
+          upgrade: yes
+          update_cache: yes
+          cache_valid_time: 86400 
+
+      - name: create the 'student' user
+        user: name=student state=present create_home=yes shell=/bin/bash group=student
       
-      - name: allow 'ubuntu' to have passwordless sudo
+      - name: allow 'student' to have passwordless sudo
         lineinfile:
           dest: /etc/sudoers
           line: 'ubuntu ALL=(ALL) NOPASSWD: ALL'
           validate: 'visudo -cf %s'
 
-      - name: set up authorized keys for the ubuntu user
-        authorized_key: user=ubuntu key="{{item}}"
+      - name: set up authorized keys for the student user
+        authorized_key: user=student key="{{item}}"
         with_file:
           - ~/.ssh/id_rsa.pub
 
@@ -57,6 +64,7 @@
   - hosts: master
     become: yes
     tasks:
+
       - name: install kubectl
         apt:
           name: kubectl=1.20.1-00
@@ -69,31 +77,30 @@
       - name: Download Calico as a network plugin which will allow us to use Network Policies
         get_url:
           url: https://docs.projectcalico.org/manifests/calico.yaml
-          dest: ~/      
+          dest: $HOME      
 
 
-      - name: Ensure we replace hostname wit k8scp in /etc/hosts
-        lineinfile:
-          dest: /etc/hosts
-          regexp: '^127\.0\.1\.1'
-          line: 127.0.1.1 k8scp 
-          owner: root
-          group: root
-          mode: '0644'
+      - name: Set the hostname to k8scp
+        hostname:
+          name: 'k8scp'
 
       - name: Delete previous configuration file if present.
         file:
-          path:  ~/kubeadm-config.yaml
+          path:  $HOME/kubeadm-config.yaml
           state: absent
 
       - name: Create a configuration file for the cluster.
         file:
-          path:  ~/kubeadm-config.yaml
+          path:  $HOME/kubeadm-config.yaml
           state: touch
+          owner: root
+          group: root
+          mode: '0700'
        
       - name: Set the configuration file for the cluster.
         blockinfile:
-          path:  ~/kubeadm-config.yaml
+          path:  $HOME/kubeadm-config.yaml
+          marker: ""
           block: |
             apiVersion: kubeadm.k8s.io/v1beta2
             kind: ClusterConfiguration
@@ -105,41 +112,43 @@
       - name: Initialize the cluster
         shell: 
         args:
-          cmd: kubeadm init --config=kubeadm-config.yaml --upload-certs | tee kubeadm-init.out
+          cmd: kubeadm init --config=kubeadm-config.yaml --upload-certs 
           chdir: $HOME
 
       - name: create .kube directory
         become: yes
-        become_user: ubuntu
+        become_user: student
         file:
           path: $HOME/.kube
           state: directory
-          mode: 0755
+          mode: '0700'
 
       - name: copy admin.conf to user's kube config
+        become: yes
+        become_user: student
         copy:
           src: /etc/kubernetes/admin.conf
-          dest: /home/ubuntu/.kube/config
+          dest: /home/student/.kube/config
           remote_src: yes
-          owner: ubuntu
+          owner: student
+          group: student
+          mode: '0740'
 
-      - name: change privileges
+
+      - name: Remember to copy the network file to the current, non-root user directory first
         become: yes
-        become_user: ubuntu
-        shell: chown $(id -u):$(id -g) $HOME/.kube/config
-        args:
-          chdir: $HOME
-
-      - name: Remember to copy the file to the current, non-root user directory first
+        become_user: student
         copy:
           src:  /root/calico.yaml
-          dest: /home/ubuntu/
+          dest: /home/student/
           remote_src: yes
-          owner: ubuntu
+          owner: student
+          group: student
+          mode: '0740'
 
       - name: install Pod network
         become: yes
-        become_user: ubuntu
+        become_user: student
         shell: kubectl apply -f calico.yaml
         args:
           chdir: $HOME
@@ -148,11 +157,16 @@
 
   - hosts: master
     become: yes
+    become_user: student
     gather_facts: false
     tasks:
       - name: get join command
         shell: kubeadm token create --print-join-command
         register: join_command_raw
+
+      - name: get hostname
+        shell: hostname -i
+        register: hostname_raw
 
       - name: set join command
         set_fact:
@@ -161,6 +175,17 @@
   - hosts: workers
     become: yes
     tasks:
+
+
+      - name: Ensure we add a local DNS alias for the cp server
+        lineinfile:
+          dest: /etc/hosts
+          regexp: '^127\.0\.1\.1 localhost'
+          insertbefore: '^127\.0\.1\.1 localhost'
+          line: "{{ hostname_raw.stdout_lines[0]  k8scp }}"
+          owner: root
+          group: root
+          mode: '0700'
 
       - name: join cluster
         shell: "{{ hostvars['master'].join_command }} >> node_joined.txt"
