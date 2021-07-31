@@ -10,12 +10,12 @@
           cache_valid_time: 86400 
 
       - name: create the 'student' user
-        user: name=student state=present create_home=yes shell=/bin/bash group=student
+        user: name=student state=present create_home=yes shell=/bin/bash group=admin 
       
       - name: allow 'student' to have passwordless sudo
         lineinfile:
           dest: /etc/sudoers
-          line: 'ubuntu ALL=(ALL) NOPASSWD: ALL'
+          line: 'student ALL=(ALL) NOPASSWD: ALL'
           validate: 'visudo -cf %s'
 
       - name: set up authorized keys for the student user
@@ -77,12 +77,7 @@
       - name: Download Calico as a network plugin which will allow us to use Network Policies
         get_url:
           url: https://docs.projectcalico.org/manifests/calico.yaml
-          dest: $HOME      
-
-
-      - name: Set the hostname to k8scp
-        hostname:
-          name: 'k8scp'
+          dest: /home/student      
 
       - name: Delete previous configuration file if present.
         file:
@@ -105,7 +100,6 @@
             apiVersion: kubeadm.k8s.io/v1beta2
             kind: ClusterConfiguration
             kubernetesVersion: 1.20.1
-            controlPlaneEndpoint: "k8scp:6443"
             networking:
               podSubnet: 192.168.0.0/16
           
@@ -125,26 +119,15 @@
 
       - name: copy admin.conf to user's kube config
         become: yes
-        become_user: student
+        become_user: root
+        become_method: sudo
         copy:
           src: /etc/kubernetes/admin.conf
           dest: /home/student/.kube/config
           remote_src: yes
           owner: student
-          group: student
           mode: '0740'
 
-
-      - name: Remember to copy the network file to the current, non-root user directory first
-        become: yes
-        become_user: student
-        copy:
-          src:  /root/calico.yaml
-          dest: /home/student/
-          remote_src: yes
-          owner: student
-          group: student
-          mode: '0740'
 
       - name: install Pod network
         become: yes
@@ -164,10 +147,6 @@
         shell: kubeadm token create --print-join-command
         register: join_command_raw
 
-      - name: get hostname
-        shell: hostname -i
-        register: hostname_raw
-
       - name: set join command
         set_fact:
           join_command: "{{ join_command_raw.stdout_lines[0] }}"
@@ -176,18 +155,9 @@
     become: yes
     tasks:
 
-
-      - name: Ensure we add a local DNS alias for the cp server
-        lineinfile:
-          dest: /etc/hosts
-          regexp: '^127\.0\.1\.1 localhost'
-          insertbefore: '^127\.0\.1\.1 localhost'
-          line: "{{ hostname_raw.stdout_lines[0]  k8scp }}"
-          owner: root
-          group: root
-          mode: '0700'
-
       - name: join cluster
+        become_user: root                                            
+        become_method: sudo 
         shell: "{{ hostvars['master'].join_command }} >> node_joined.txt"
         args:
           chdir: $HOME
