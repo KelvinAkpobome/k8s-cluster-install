@@ -46,22 +46,21 @@
           state: present
           filename: 'kubernetes'
 
-      - name: install kubelet
+      - name: Apt install packages
         apt:
-          name: kubelet=1.20.1-00
-          state: present
-          update_cache: yes
+          name: "{{ item }}"
+          state:  present
+        with_items:     
+         - kubelet=1.20.1-00
+         - kubeadm=1.20.1-00
+        update_cache: yes
 
-      - name: install kubeadm
-        apt:
-          name: kubeadm=1.20.1-00
-          state: present
 
       - name: hold the software at the recent but stable version 
         shell: apt-mark hold kubelet kubeadm
         
 
-  - hosts: master
+  - hosts: masters
     become: yes
     tasks:
 
@@ -117,6 +116,13 @@
           state: directory
           mode: '0700'
 
+      - name: install Pod network
+        become: yes
+        become_user: student
+        shell: kubectl apply -f calico.yaml
+        args:
+          chdir: $HOME
+
       - name: copy admin.conf to user's kube config
         become: yes
         become_user: root
@@ -126,30 +132,8 @@
           dest: /home/student/.kube/config
           remote_src: yes
           owner: student
-          mode: '0740'
+          mode: "0740"
 
-
-      - name: install Pod network
-        become: yes
-        become_user: student
-        shell: kubectl apply -f calico.yaml
-        args:
-          chdir: $HOME
-       
-
-
-  - hosts: master
-    become: yes
-    become_user: student
-    gather_facts: false
-    tasks:
-      - name: get join command
-        shell: kubeadm token create --print-join-command
-        register: join_command_raw
-
-      - name: set join command
-        set_fact:
-          join_command: "{{ join_command_raw.stdout_lines[0] }}"
 
   - hosts: workers
     become: yes
@@ -158,8 +142,8 @@
       - name: join cluster
         become_user: root                                            
         become_method: sudo 
-        shell: "{{ hostvars['master'].join_command }} >> node_joined.txt"
+        shell: "{{ hostvars['masters'].join_command }} "
         args:
           chdir: $HOME
-          creates: node_joined.txt
+          
 
