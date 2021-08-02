@@ -161,7 +161,7 @@
       - name: join cluster
         become_user: root                                            
         become_method: sudo 
-        shell: "{{ hostvars['masters'].join_command }} "
+        shell: "{{ hostvars['master'].join_command }} "
         args:
           chdir: $HOME
           
