@@ -121,13 +121,6 @@
           state: directory
           mode: '0700'
 
-      - name: install Pod network
-        become: yes
-        become_user: student
-        shell: kubectl apply -f calico.yaml
-        args:
-          chdir: $HOME
-
       - name: copy admin.conf to user's kube config
         become: yes
         become_user: root
@@ -137,7 +130,15 @@
           dest: /home/student/.kube/config
           remote_src: yes
           owner: student
-          mode: "0740"
+          mode: "0700"
+
+      - name: install Pod network
+        become: yes
+        become_user: student
+        shell: kubectl apply -f calico.yaml
+        args:
+          chdir: $HOME
+
 
 
       - name: get join command
