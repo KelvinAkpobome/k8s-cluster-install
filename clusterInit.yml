@@ -5,9 +5,9 @@
 
       - name: update and upgrade apt package
         apt: 
-          upgrade: yes
-          update_cache: yes
-          cache_valid_time: 86400 
+          upgrade: "yes"
+          update_cache: "yes"
+          cache_valid_time: "86400" 
 
       - name: create the 'student' user
         user: name=student state=present create_home=yes shell=/bin/bash group=admin 
@@ -47,16 +47,16 @@
           filename: 'kubernetes'
 
 
+      - name: install kubelet
+        apt:
+          name: kubelet
+          state: latest
+          update_cache: true
+
       - name: install kubeadm
         apt:
-          name: kubeadm=1.20.1-00
-          state: present
-          update_cache: yes
-
-      - name: install kubectl
-        apt:
-          name: kubelet=1.20.1-00
-          state: present
+          name: kubeadm
+          state: latest
 
 
       - name: hold the software at the recent but stable version 
@@ -69,8 +69,8 @@
 
       - name: install kubectl
         apt:
-          name: kubectl=1.20.1-00
-          state: present
+          name: kubectl
+          state: latest
           force: yes
 
       - name: hold the software at the recent but stable version 
@@ -80,6 +80,8 @@
         get_url:
           url: https://docs.projectcalico.org/manifests/calico.yaml
           dest: /home/student      
+          owner: "student"
+          mode: "0740" 
 
       - name: Delete previous configuration file if present.
         file:
@@ -101,7 +103,7 @@
           block: |
             apiVersion: kubeadm.k8s.io/v1beta2
             kind: ClusterConfiguration
-            kubernetesVersion: 1.20.1
+            kubernetesVersion: 1.21.3
             networking:
               podSubnet: 192.168.0.0/16
           
