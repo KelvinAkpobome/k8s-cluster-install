@@ -149,7 +149,7 @@
       - name: Initialize the cluster
         shell: 
         args:
-          cmd: kubeadm init --config=kubeadm-config.yaml --upload-certs 
+          cmd: kubeadm init --config=kubeadm-config.yaml 
           chdir: $HOME
 
       - name: create .kube directory
