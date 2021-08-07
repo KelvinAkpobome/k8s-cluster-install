@@ -67,12 +67,7 @@
       - name: disable swap
         shell: |
                 sudo swapoff -a
-                sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-
-     - name: install and configure dependencies
-       shell: |
-               sudo apt-get update && sudo apt-get install -y apt-transport-https curl
-               curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+                sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab 
 
       - name: install APT Transport HTTPS
         apt:
